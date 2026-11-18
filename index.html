@@ -12,19 +12,65 @@ button,.button{border:1px solid #145a43;border-radius:4px;background:#145a43;col
 button:disabled{opacity:.45;cursor:default}.secondary{background:white;color:#145a43}
 input{font:inherit;max-width:100%}#drop{border:1px dashed #778d81;padding:1rem;max-width:540px}
 pre{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#48574f}
+
+select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:16px;margin:16px 0}
+.check{border:1px solid #d8dfdb;padding:14px;border-radius:4px;overflow-wrap:anywhere}
+.check h3{margin:0;font-size:1rem}.verdict{display:block;margin:.5rem 0;font-size:1.3rem}
+[data-tone="ok"]{color:#126346}[data-tone="bad"]{color:#ad351f}[data-tone="idle"]{color:#586760}
+#banner{background:#fff4d5;color:#5b4514;padding:.6rem}
 </style>
 <main><header><h1>条码打印与解码</h1><p>选样、打印、读码。照片和视频在浏览器处理。</p></header>
 <section><h2>01 选样与打印</h2><p>从 256 个普通条码中选样，或直接下载练习页。按 A4 实际大小打印，核对 100 mm 标线。</p><nav><a class="button" href="catalog.html">打开条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a></nav></section>
-<section><h2>02 读取普通条码</h2><p>选择或拖入一张照片或一段短视频。拍摄时保留完整条码和两侧白边。</p><div id="drop"><input id="file" aria-label="选择拍摄文件" type="file" accept="image/*,video/*"></div><p id="status" role="status">等待选择文件</p><pre id="result"></pre><button id="save" disabled>下载读取记录</button></section>
-<p><small>本页读取普通条码。E2E 隐藏水印需要内部工具。</small></p></main>
+<section><h2>02 解码核对</h2>
+<label for="sample">样张编号</label><br><select id="sample"></select>
+<p>拍摄单枚条码，保留左右白边。再选择或拖入照片或短视频。</p>
+<div id="drop"><input id="file" aria-label="选择拍摄文件" type="file" accept="image/*,video/*"></div>
+<p id="status" role="status">等待选择文件</p>
+<p id="banner" hidden role="status">演示数据 · 以下结果由示例生成，没有读取拍摄文件。</p>
+<div class="checks" aria-label="解码判定" aria-live="polite">
+ <article class="check"><h3>公开条码</h3><strong id="public-state" class="verdict">等待读取</strong><p id="public-expected"></p><p id="public-actual">实际读数：—</p></article>
+ <article class="check"><h3>隐藏水印</h3><strong id="hidden-state" class="verdict">未验证</strong><p id="hidden-detail">当前页面未连接 E2E 水印读取器。</p></article>
+</div>
+<nav><button id="save" disabled>下载读取记录</button><button id="demo" class="secondary">演示判定效果</button></nav>
+</section></main>
+<script src="catalog.js"></script>
 <script>
-const file=document.querySelector('#file'), status=document.querySelector('#status'), result=document.querySelector('#result'), save=document.querySelector('#save'), drop=document.querySelector('#drop');
-let record, busy=false;
+const file=document.querySelector('#file'), status=document.querySelector('#status'), save=document.querySelector('#save'), drop=document.querySelector('#drop');
+const by=id=>document.getElementById(id);
+const sample=by('sample'), banner=by('banner'), demo=by('demo');
+const rows=[{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
+sample.replaceChildren(...rows.map((r,i)=>new Option(r.id+' · '+r.value,i)));
+const current=()=>rows[Number(sample.value)];
+const label={correct:'正确',mismatch:'不匹配',no_read:'未读出',unverified:'未验证',waiting:'等待读取'};
+const tone={correct:'ok',mismatch:'bad',no_read:'idle',unverified:'idle',waiting:'idle'};
+let record,busy=false,demoIndex=0;
+function show(r){
+ banner.hidden=!r?.demo;
+ const pub=r?.public?.status||'waiting', hid=r?.hidden?.status||'unverified';
+ by('public-state').textContent=label[pub];by('public-state').dataset.tone=tone[pub];
+ by('hidden-state').textContent=label[hid];by('hidden-state').dataset.tone=tone[hid];
+ by('public-expected').textContent='预期：'+current().value;
+ by('public-actual').textContent='实际读数：'+(r?.public?.values?.join('、')||'—');
+ by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':'当前页面未连接 E2E 水印读取器。';
+ save.disabled=!r||r.demo;
+}
+function publicResult(values,expected){return {expected,values,status:!values.length?'no_read':values.length===1&&values[0]===expected?'correct':'mismatch'};}
+sample.onchange=()=>{record=undefined;status.textContent='等待选择文件';show();};
+demo.onclick=()=>{
+ const cases=[[current().value,'correct'],['错误示例读数','mismatch'],[undefined,'no_read']];
+ const [actual,hidden]=cases[demoIndex++%cases.length];
+ status.textContent='演示模式（再次点击切换示例）';
+ show({demo:true,public:publicResult(actual?[actual]:[],current().value),hidden:{status:hidden}});
+};
+show();
 function event(el,name){return new Promise((resolve,reject)=>{const done=()=>{clearTimeout(timer);el.removeEventListener(name,done);el.removeEventListener('error',bad);resolve()};const bad=()=>{clearTimeout(timer);el.removeEventListener(name,done);el.removeEventListener('error',bad);reject(Error('浏览器无法读取该文件'))};const timer=setTimeout(bad,8000);el.addEventListener(name,done);el.addEventListener('error',bad);})}
 async function read(f){
  if(!f||busy)return;
+ record=undefined;show();
  if(!('BarcodeDetector' in window)){status.textContent='此浏览器不支持内置条码检测。请使用支持 BarcodeDetector 的浏览器或系统扫码工具。';return;}
- busy=true;save.disabled=true;result.textContent='';status.textContent='正在读取…';
+ busy=true;sample.disabled=true;demo.disabled=true;status.textContent='正在读取…';
+ const selected=current();
  let url,video,image;
  try{
   const scanner=new BarcodeDetector(), found=new Map();
@@ -37,11 +83,11 @@ async function read(f){
    for(let i=0;i<12;i++){const t=(i+.5)*duration/12;if(Math.abs(video.currentTime-t)>0.001){const seek=event(video,'seeked');video.currentTime=t;await seek;}await scan(video);}
   }else{image=await createImageBitmap(f);await scan(image);}
   const codes=[...found.values()];
-  record={file:f.name,created_at:new Date().toISOString(),status:codes.length?'read':'no_read',codes};
-  status.textContent=codes.length?'读取完成':'未读到公共条码';
-  result.textContent=codes.map(x=>x.format+'  '+x.value).join('\n');save.disabled=false;
+  record={file:f.name,created_at:new Date().toISOString(),sample:selected.id,codes,
+   public:publicResult([...new Set(codes.map(x=>x.value))],selected.value),hidden:{status:'unverified'}};
+  status.textContent='读取完成';show(record);
  }catch(e){status.textContent=e.message||'读取失败';}
- finally{image?.close();if(video)video.removeAttribute('src');if(url)URL.revokeObjectURL(url);busy=false;}
+ finally{image?.close();if(video)video.removeAttribute('src');if(url)URL.revokeObjectURL(url);busy=false;sample.disabled=false;demo.disabled=false;}
 }
 file.onchange=()=>read(file.files[0]);
 drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();read(e.dataTransfer.files[0]);};
