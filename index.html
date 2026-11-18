@@ -42,7 +42,7 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 const file=document.querySelector('#file'), status=document.querySelector('#status'), save=document.querySelector('#save'), drop=document.querySelector('#drop');
 const by=id=>document.getElementById(id);
 const sample=by('sample'), banner=by('banner'), demo=by('demo');
-const rows=[...ROUGH_SAMPLES.map(r=>({...r,field:true,label:"粗面纸批次 · "+r.id})),...FIELD_SAMPLES.map(r=>({...r,field:true})),{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
+const rows=[...ROUGH_SAMPLES.map(r=>({...r,field:true,label:"粗面纸批次 · "+r.id})),...FIELD_SAMPLES.map(r=>({...r,field:true,decoderUID:ROUGH_SAMPLES.find(x=>x.id===r.id&&x.format===r.format&&x.value===r.value)?.uid})),{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
 sample.replaceChildren(...rows.map((r,i)=>new Option((r.label||r.id)+' · '+r.value,i)));
 const requested=new URLSearchParams(location.search).get('sample');
 const index=rows.findIndex(r=>r.field&&(r.uid||r.id)===requested);
@@ -61,12 +61,12 @@ function show(r){
  by('public-expected').textContent='预期：'+current().value;
  by('public-actual').textContent='实际读数：'+(r?.public?.values?.join('、')||'—');
  by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':
-  current().uid?.startsWith('rough230g-')?(
+  (current().uid||current().decoderUID)?(
    hid==='control'?'该位置是无水印对照。':
    r?.hidden?.payload?'读出载荷：'+r.hidden.payload+' · 使用 '+r.hidden.frames+' 帧':
    hid==='no_read'?'未找到可读取水印的清晰完整条码帧。':
    r?.hidden?.error?'水印处理失败：'+r.hidden.error:'选择视频后自动读取并核对隐藏水印。'
-  ):current().field?'该优选图请从粗面纸批次找到对应的一维样张。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
+  ):current().field?'这张 QR 样张目前只核对公开码。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
  save.disabled=!r||r.demo;
 }
 function publicResult(values,expected){return {expected,values,status:!values.length?'no_read':values.length===1&&values[0]===expected?'correct':'mismatch'};}
@@ -87,8 +87,8 @@ async function read(f){
  let url,video,image;
  try{
   let rough,hidden={status:'unverified'};
-  if(selected.uid?.startsWith('rough230g-')){
-    try{rough=await import('./rough-decoder/read.mjs?v=1').then(m=>m.configureRough(selected.uid));}
+  if(selected.uid||selected.decoderUID){
+    try{rough=await import('./rough-decoder/read.mjs?v=1').then(m=>m.configureRough(selected.uid||selected.decoderUID));}
     catch(e){hidden.error=e.message;}
   }
   const found=new Map(), frame=document.createElement('canvas');
