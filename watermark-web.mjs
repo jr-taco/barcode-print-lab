@@ -78,7 +78,7 @@ async function load(){
  ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
  const [session,reference]=await Promise.all([
    ort.InferenceSession.create('watermark-reader.onnx',{executionProviders:['wasm']}),
-   fetch('watermark-reference.json').then(r=>{if(!r.ok)throw Error('样张参考文件读取失败。');return r.json();})
+   fetch('watermark-reference.json?v=video-1').then(r=>{if(!r.ok)throw Error('样张参考文件读取失败。');return r.json();})
  ]);
  return {session,reference};
 }
