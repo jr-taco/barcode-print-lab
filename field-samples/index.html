@@ -12,24 +12,30 @@ code{font-size:.9em}
 </style>
 <main><a href="../">返回打印与解码</a><h1>实拍样张库</h1>
 <p>一维码按已有纸面实拍结果优先选取，QR 按已有屏摄结果选取。共 12 张独立 PNG，每种码制三张。</p>
-<p>下载 PNG，保留四周白边。按实际尺寸打印：一维码外框 54.53 × 44.70 mm，QR 外框 44.45 × 44.45 mm。记录样张编号，每次只拍一枚。</p>
-<p>点「核对公开码」后上传拍摄视频。这里的 12 张样张尚未接入网页隐藏水印读取；如需测试网页隐藏解码，请用 <a href="../watermark.html">E2E 专用样张</a>。</p>
-<div id="groups"></div></main>
+<p>优选送检样张（下方独立分组）保留额外白边，一维码外框 54.53 × 44.70 mm，QR 外框 44.45 × 44.45 mm。记录样张编号，每次只拍一枚。</p>
+<p>点「核对公开码」后上传拍摄视频。实拍样张尚未接入网页隐藏水印读取；如需测试网页隐藏解码，请用 <a href="../watermark.html">E2E 专用样张</a>。</p>
+<h2>泛太克 230g 增强粗面纸 · 40 张原图</h2>
+<p>原文件《2_条码_A4.pdf》两页各 20 个位置。纸面和屏幕的三轮视频共享这 40 张原图。单张 PNG 为 904 × 672 px，打印时按 600 px/in 放置约 38.27 × 28.45 mm；不要裁掉原白边。</p>
+<p><a href="#rough-p1">第 1 页 E-01 至 E-20</a> · <a href="#rough-p2">第 2 页 X-01 至 X-20</a></p>
+<div id="rough"></div>
+<h2>优选送检样张 · 12 张</h2><div id="groups"></div></main>
 <script src="manifest.js?v=1"></script>
+<script src="rough230g/manifest.js"></script>
 <script>
-const root=document.querySelector('#groups');
-for(const format of ['EAN-13','EAN-8','Code 128-C','QR V3-M']){
- const title=document.createElement('h2');title.textContent=format;root.append(title);
+function renderGroup(root,titleText,records,id){
+ const title=document.createElement('h2');title.textContent=titleText;if(id)title.id=id;root.append(title);
  const list=document.createElement('ul');root.append(list);
- for(const r of FIELD_SAMPLES.filter(r=>r.format===format).sort((a,b)=>a.rank-b.rank)){
+ for(const r of records){
   const item=document.createElement('li'), im=document.createElement('img'), name=document.createElement('p'), value=document.createElement('code'), nav=document.createElement('nav');
   const download=document.createElement('a'), verify=document.createElement('a');
-  im.src=r.file;im.alt=format+' '+r.id;im.loading='lazy';
-  name.textContent='第 '+r.rank+' 名 · '+r.id+' · '+(r.kind==='paper'?'纸面实拍':'屏摄');
+  im.src=r.file;im.alt=r.format+' '+r.id;im.loading='lazy';
+  name.textContent=r.rank?'第 '+r.rank+' 名 · '+r.id+' · '+(r.kind==='paper'?'纸面实拍':'屏摄'):r.id+' · '+r.format;
   value.textContent=r.value;
   download.href=r.file;download.download='';download.textContent='下载 PNG';
-  verify.href='../?sample='+encodeURIComponent(r.id)+'#sample';verify.textContent='核对公开码';
+  verify.href='../?sample='+encodeURIComponent(r.uid||r.id)+'#sample';verify.textContent='核对公开码';
   nav.append(download,verify);item.append(im,name,value,nav);list.append(item);
  }
 }
+for(const page of [1,2])renderGroup(document.querySelector('#rough'),'原打印文件第 '+page+' 页',ROUGH_SAMPLES.filter(r=>r.page===page),'rough-p'+page);
+for(const format of ['EAN-13','EAN-8','Code 128-C','QR V3-M'])renderGroup(document.querySelector('#groups'),format,FIELD_SAMPLES.filter(r=>r.format===format).sort((a,b)=>a.rank-b.rank));
 </script></html>

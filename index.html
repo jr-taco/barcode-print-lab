@@ -21,7 +21,7 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 #banner{background:#fff4d5;color:#5b4514;padding:.6rem}
 </style>
 <main><header><h1>条码打印与解码</h1><p>选样、打印、读码。照片和视频在浏览器处理。</p></header>
-<section><h2>01 选样与打印</h2><p>下载已有实拍或屏摄依据的 12 张样张，或从普通条码库选一组对照。</p><nav><a class="button" href="field-samples/">打开实拍样张库</a><a class="button secondary" href="catalog.html">打开普通条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a><a class="button secondary" href="watermark.html">E2E 隐藏水印核对</a></nav></section>
+<section><h2>01 选样与打印</h2><p>下载粗面纸批次原图或优选样张，或从普通条码库选一组对照。</p><nav><a class="button" href="field-samples/">打开实拍样张库</a><a class="button secondary" href="catalog.html">打开普通条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a><a class="button secondary" href="watermark.html">E2E 隐藏水印核对</a></nav></section>
 <section><h2>02 解码核对</h2>
 <label for="sample">样张编号</label><br><select id="sample"></select>
 <p>拍摄单枚条码，保留左右白边。再选择或拖入照片或短视频。</p>
@@ -36,15 +36,16 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 </section></main>
 <script src="catalog.js"></script>
 <script src="field-samples/manifest.js?v=1"></script>
+<script src="field-samples/rough230g/manifest.js"></script>
 <script src="vendor/zxing-reader.js"></script>
 <script>
 const file=document.querySelector('#file'), status=document.querySelector('#status'), save=document.querySelector('#save'), drop=document.querySelector('#drop');
 const by=id=>document.getElementById(id);
 const sample=by('sample'), banner=by('banner'), demo=by('demo');
-const rows=[...FIELD_SAMPLES.map(r=>({...r,field:true})),{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
-sample.replaceChildren(...rows.map((r,i)=>new Option(r.id+' · '+r.value,i)));
+const rows=[...ROUGH_SAMPLES.map(r=>({...r,field:true,label:"粗面纸批次 · "+r.id})),...FIELD_SAMPLES.map(r=>({...r,field:true})),{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
+sample.replaceChildren(...rows.map((r,i)=>new Option((r.label||r.id)+' · '+r.value,i)));
 const requested=new URLSearchParams(location.search).get('sample');
-const index=rows.findIndex(r=>r.field&&r.id===requested);
+const index=rows.findIndex(r=>r.field&&(r.uid||r.id)===requested);
 if(index>=0)sample.value=String(index);
 ZXingWASM.prepareZXingModule({overrides:{locateFile:(path,prefix)=>path.endsWith('.wasm')?new URL('vendor/'+path,location.href).href:prefix+path}});
 
@@ -97,7 +98,7 @@ async function read(f){
    for(let i=0;i<12;i++){const t=(i+.5)*duration/12;if(Math.abs(video.currentTime-t)>0.001){const seek=event(video,'seeked');video.currentTime=t;await seek;}await scan(video);}
   }else{image=await createImageBitmap(f);await scan(image);}
   const codes=[...found.values()];
-  record={file:f.name,created_at:new Date().toISOString(),sample:selected.id,codes,
+  record={file:f.name,created_at:new Date().toISOString(),sample:selected.uid||selected.id,codes,
    public:publicResult([...new Set(codes.map(x=>x.value))],selected.value),hidden:{status:'unverified'}};
   status.textContent='读取完成';show(record);
  }catch(e){status.textContent=e.message||'读取失败';}
