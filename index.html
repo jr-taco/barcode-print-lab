@@ -21,7 +21,7 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 #banner{background:#fff4d5;color:#5b4514;padding:.6rem}
 </style>
 <main><header><h1>条码打印与解码</h1><p>选样、打印、读码。照片和视频在浏览器处理。</p></header>
-<section><h2>01 选样与打印</h2><p>从 256 个普通条码中选样，或直接下载练习页。按 A4 实际大小打印，核对 100 mm 标线。</p><nav><a class="button" href="catalog.html">打开条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a><a class="button secondary" href="watermark.html">E2E 隐藏水印核对</a></nav></section>
+<section><h2>01 选样与打印</h2><p>下载已有实拍或屏摄依据的 12 张样张，或从普通条码库选一组对照。</p><nav><a class="button" href="field-samples/">打开实拍样张库</a><a class="button secondary" href="catalog.html">打开普通条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a><a class="button secondary" href="watermark.html">E2E 隐藏水印核对</a></nav></section>
 <section><h2>02 解码核对</h2>
 <label for="sample">样张编号</label><br><select id="sample"></select>
 <p>拍摄单枚条码，保留左右白边。再选择或拖入照片或短视频。</p>
@@ -35,12 +35,19 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 <nav><button id="save" disabled>下载读取记录</button><button id="demo" class="secondary">演示判定效果</button></nav>
 </section></main>
 <script src="catalog.js"></script>
+<script src="field-samples/manifest.js?v=1"></script>
+<script src="vendor/zxing-reader.js"></script>
 <script>
 const file=document.querySelector('#file'), status=document.querySelector('#status'), save=document.querySelector('#save'), drop=document.querySelector('#drop');
 const by=id=>document.getElementById(id);
 const sample=by('sample'), banner=by('banner'), demo=by('demo');
-const rows=[{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
+const rows=[...FIELD_SAMPLES.map(r=>({...r,field:true})),{id:'练习页 EAN-13',value:'9780201379624'},{id:'练习页 QR',value:'https://example.org/print-lab'},...CATALOG.map((r,i)=>({id:'L'+String(i+1).padStart(3,'0')+' · '+r[0],value:r[1]}))];
 sample.replaceChildren(...rows.map((r,i)=>new Option(r.id+' · '+r.value,i)));
+const requested=new URLSearchParams(location.search).get('sample');
+const index=rows.findIndex(r=>r.field&&r.id===requested);
+if(index>=0)sample.value=String(index);
+ZXingWASM.prepareZXingModule({overrides:{locateFile:(path,prefix)=>path.endsWith('.wasm')?new URL('vendor/'+path,location.href).href:prefix+path}});
+
 const current=()=>rows[Number(sample.value)];
 const label={correct:'正确',mismatch:'不匹配',no_read:'未读出',unverified:'未验证',waiting:'等待读取'};
 const tone={correct:'ok',mismatch:'bad',no_read:'idle',unverified:'idle',waiting:'idle'};
@@ -52,7 +59,7 @@ function show(r){
  by('hidden-state').textContent=label[hid];by('hidden-state').dataset.tone=tone[hid];
  by('public-expected').textContent='预期：'+current().value;
  by('public-actual').textContent='实际读数：'+(r?.public?.values?.join('、')||'—');
- by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
+ by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':current().field?'这个样张可核对公开码，网页尚未接入它的隐藏水印。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
  save.disabled=!r||r.demo;
 }
 function publicResult(values,expected){return {expected,values,status:!values.length?'no_read':values.length===1&&values[0]===expected?'correct':'mismatch'};}
@@ -68,13 +75,20 @@ function event(el,name){return new Promise((resolve,reject)=>{const done=()=>{cl
 async function read(f){
  if(!f||busy)return;
  record=undefined;show();
- if(!('BarcodeDetector' in window)){status.textContent='此浏览器不支持内置条码检测。请使用支持 BarcodeDetector 的浏览器或系统扫码工具。';return;}
  busy=true;sample.disabled=true;demo.disabled=true;status.textContent='正在读取…';
  const selected=current();
  let url,video,image;
  try{
-  const scanner=new BarcodeDetector(), found=new Map();
-  const scan=async source=>{for(const {format,rawValue} of await scanner.detect(source))found.set(format+'\0'+rawValue,{format,value:rawValue});};
+  const found=new Map(), frame=document.createElement('canvas');
+  const ctx=frame.getContext('2d',{willReadFrequently:true});
+  const scan=async source=>{
+   const width=source.videoWidth||source.width,height=source.videoHeight||source.height;
+   const scale=Math.min(1,1920/Math.max(width,height));
+   frame.width=Math.max(1,Math.round(width*scale));frame.height=Math.max(1,Math.round(height*scale));
+   ctx.drawImage(source,0,0,frame.width,frame.height);
+   const hits=await ZXingWASM.readBarcodes(ctx.getImageData(0,0,frame.width,frame.height),{tryHarder:true,formats:['EAN13','EAN8','Code128','QRCode']});
+   for(const {format,text} of hits)found.set(format+'\0'+text,{format,value:text});
+  };
   if(f.type.startsWith('video/')||/\.(mp4|mov|m4v|webm)$/i.test(f.name)){
    url=URL.createObjectURL(f);video=document.createElement('video');video.muted=true;video.preload='auto';
    const ready=event(video,'loadeddata');video.src=url;await ready;

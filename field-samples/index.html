@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>实拍样张库 · 条码打印与解码</title>
+<style>
+*{box-sizing:border-box}body{margin:0;color:#182621;background:white;font:16px/1.55 system-ui}
+main{max-width:950px;margin:auto;padding:32px 20px}a{color:#145a43;text-underline-offset:3px}
+h1{margin-bottom:.2em}h2{border-bottom:1px solid #d8dfdb;padding-bottom:.45em;margin-top:1.6em}
+p{color:#43534a}ul{padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:14px;list-style:none}
+li{border:1px solid #d8dfdb;padding:12px;overflow-wrap:anywhere}
+img{width:100%;height:155px;object-fit:contain;border:1px solid #edf0ee}nav{display:flex;gap:16px;flex-wrap:wrap}
+code{font-size:.9em}
+</style>
+<main><a href="../">返回打印与解码</a><h1>实拍样张库</h1>
+<p>一维码按已有纸面实拍结果优先选取，QR 按已有屏摄结果选取。共 12 张独立 PNG，每种码制三张。</p>
+<p>下载 PNG，保留四周白边。按实际尺寸打印：一维码外框 54.53 × 44.70 mm，QR 外框 44.45 × 44.45 mm。记录样张编号，每次只拍一枚。</p>
+<p>点「核对公开码」后上传拍摄视频。这里的 12 张样张尚未接入网页隐藏水印读取；如需测试网页隐藏解码，请用 <a href="../watermark.html">E2E 专用样张</a>。</p>
+<div id="groups"></div></main>
+<script src="manifest.js?v=1"></script>
+<script>
+const root=document.querySelector('#groups');
+for(const format of ['EAN-13','EAN-8','Code 128-C','QR V3-M']){
+ const title=document.createElement('h2');title.textContent=format;root.append(title);
+ const list=document.createElement('ul');root.append(list);
+ for(const r of FIELD_SAMPLES.filter(r=>r.format===format).sort((a,b)=>a.rank-b.rank)){
+  const item=document.createElement('li'), im=document.createElement('img'), name=document.createElement('p'), value=document.createElement('code'), nav=document.createElement('nav');
+  const download=document.createElement('a'), verify=document.createElement('a');
+  im.src=r.file;im.alt=format+' '+r.id;im.loading='lazy';
+  name.textContent='第 '+r.rank+' 名 · '+r.id+' · '+(r.kind==='paper'?'纸面实拍':'屏摄');
+  value.textContent=r.value;
+  download.href=r.file;download.download='';download.textContent='下载 PNG';
+  verify.href='../?sample='+encodeURIComponent(r.id)+'#sample';verify.textContent='核对公开码';
+  nav.append(download,verify);item.append(im,name,value,nav);list.append(item);
+ }
+}
+</script></html>
