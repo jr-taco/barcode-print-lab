@@ -2,20 +2,28 @@
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>码间 · 打印实验台</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f4f5f0;color:#192e25;font:16px/1.65 system-ui,sans-serif}
-main{max-width:850px;margin:auto;padding:48px 22px}header{border-bottom:1px solid #cbd5cc;padding-bottom:24px}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.15;margin:.3rem 0}h2{margin:0 0 .6rem}section{background:white;border:1px solid #d3ddd4;border-radius:16px;padding:22px;margin:18px 0}a,button{color:#155340}button,.button{border:0;border-radius:8px;background:#155340;color:white;padding:.65rem 1rem;font:inherit;text-decoration:none;display:inline-block;cursor:pointer}button:disabled{opacity:.45;cursor:default}input{font:inherit;max-width:100%}#drop{border:2px dashed #83a797;padding:1rem;border-radius:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+:root{font-family:system-ui,sans-serif;color:#182621;background:#fff;line-height:1.55}
+*{box-sizing:border-box}body{margin:0}main{max-width:900px;margin:auto;padding:42px 24px}
+header{border-bottom:1px solid #d8dfdb;padding-bottom:20px}h1{font-size:clamp(2rem,6vw,3rem);line-height:1.1;margin:0}
+h2{font-size:1.2rem;margin:0 0 8px}p{margin:8px 0 14px;color:#48574f}
+section{padding:24px 0;border-bottom:1px solid #d8dfdb}
+nav{display:flex;flex-wrap:wrap;gap:12px}a{color:#145a43;text-underline-offset:3px}
+button,.button{border:1px solid #145a43;border-radius:4px;background:#145a43;color:white;padding:.55rem .9rem;font:inherit;text-decoration:none;display:inline-block;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}.secondary{background:white;color:#145a43}
+input{font:inherit;max-width:100%}#drop{border:1px dashed #778d81;padding:1rem;max-width:540px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#48574f}
 </style>
-<main><header><strong>码间 / PRINT LAB</strong><h1>打印实验台</h1><p>下载样张、打印拍摄，再在浏览器里读取公共条码。照片和视频留在当前设备。</p></header>
-<section><h2>下载与打印</h2><p>以 A4 实际大小 100% 打印，用直尺核对 100 mm 标线。拍摄时保留条码全高和左右白边，避免反光。公开练习页含普通 EAN-13 和 QR 样本。</p><a class="button" href="sample.svg" download>下载 A4 练习样张</a> <a class="button" href="catalog.html">浏览 256 个条码</a></section>
-<section><h2>读码</h2><p>选择或拖入照片、短视频。每次只拍一个条码，建议使用 PNG、JPEG 或 MP4。</p><div id="drop"><input id="file" type="file" accept="image/*,video/*"></div><p id="status" role="status">等待文件</p><pre id="result"></pre><button id="save" disabled>下载读取记录</button></section>
-<section><h2>隐藏水印</h2><p>公开练习页只用于普通条码。已有的旧版兼容样张可以在原工作台读取隐藏载荷。</p><a href="https://jr-taco.github.io/barcode-scanner/">打开旧版「码间」读取器</a></section></main>
+<main><header><h1>条码打印与解码</h1><p>选样、打印、读码。照片和视频在浏览器处理。</p></header>
+<section><h2>01 选样与打印</h2><p>从 256 个普通条码中选样，或直接下载练习页。按 A4 实际大小打印，核对 100 mm 标线。</p><nav><a class="button" href="catalog.html">打开条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a></nav></section>
+<section><h2>02 读取普通条码</h2><p>选择或拖入一张照片或一段短视频。拍摄时保留完整条码和两侧白边。</p><div id="drop"><input id="file" aria-label="选择拍摄文件" type="file" accept="image/*,video/*"></div><p id="status" role="status">等待选择文件</p><pre id="result"></pre><button id="save" disabled>下载读取记录</button></section>
+<p><small>本页读取普通条码。E2E 隐藏水印需要内部工具。</small></p></main>
 <script>
 const file=document.querySelector('#file'), status=document.querySelector('#status'), result=document.querySelector('#result'), save=document.querySelector('#save'), drop=document.querySelector('#drop');
 let record, busy=false;
 function event(el,name){return new Promise((resolve,reject)=>{const done=()=>{clearTimeout(timer);el.removeEventListener(name,done);el.removeEventListener('error',bad);resolve()};const bad=()=>{clearTimeout(timer);el.removeEventListener(name,done);el.removeEventListener('error',bad);reject(Error('浏览器无法读取该文件'))};const timer=setTimeout(bad,8000);el.addEventListener(name,done);el.addEventListener('error',bad);})}
 async function read(f){
  if(!f||busy)return;
- if(!('BarcodeDetector' in window)){status.textContent='此浏览器不支持页面内扫码，请使用下方的旧版读取器。';return;}
+ if(!('BarcodeDetector' in window)){status.textContent='此浏览器不支持内置条码检测。请使用支持 BarcodeDetector 的浏览器或系统扫码工具。';return;}
  busy=true;save.disabled=true;result.textContent='';status.textContent='正在读取…';
  let url,video,image;
  try{
