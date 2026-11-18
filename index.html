@@ -6,7 +6,7 @@
 main{max-width:850px;margin:auto;padding:48px 22px}header{border-bottom:1px solid #cbd5cc;padding-bottom:24px}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.15;margin:.3rem 0}h2{margin:0 0 .6rem}section{background:white;border:1px solid #d3ddd4;border-radius:16px;padding:22px;margin:18px 0}a,button{color:#155340}button,.button{border:0;border-radius:8px;background:#155340;color:white;padding:.65rem 1rem;font:inherit;text-decoration:none;display:inline-block;cursor:pointer}button:disabled{opacity:.45;cursor:default}input{font:inherit;max-width:100%}#drop{border:2px dashed #83a797;padding:1rem;border-radius:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 <main><header><strong>码间 / PRINT LAB</strong><h1>打印实验台</h1><p>下载样张、打印拍摄，再在浏览器里读取公共条码。照片和视频留在当前设备。</p></header>
-<section><h2>下载与打印</h2><p>以 A4 实际大小 100% 打印，用直尺核对 100 mm 标线。拍摄时保留条码全高和左右白边，避免反光。公开练习页含普通 EAN-13 和 QR 样本。</p><a class="button" href="sample.svg" download>下载 A4 练习样张</a></section>
+<section><h2>下载与打印</h2><p>以 A4 实际大小 100% 打印，用直尺核对 100 mm 标线。拍摄时保留条码全高和左右白边，避免反光。公开练习页含普通 EAN-13 和 QR 样本。</p><a class="button" href="sample.svg" download>下载 A4 练习样张</a> <a class="button" href="catalog.html">浏览 256 个条码</a></section>
 <section><h2>读码</h2><p>选择或拖入照片、短视频。每次只拍一个条码，建议使用 PNG、JPEG 或 MP4。</p><div id="drop"><input id="file" type="file" accept="image/*,video/*"></div><p id="status" role="status">等待文件</p><pre id="result"></pre><button id="save" disabled>下载读取记录</button></section>
 <section><h2>隐藏水印</h2><p>公开练习页只用于普通条码。已有的旧版兼容样张可以在原工作台读取隐藏载荷。</p><a href="https://jr-taco.github.io/barcode-scanner/">打开旧版「码间」读取器</a></section></main>
 <script>

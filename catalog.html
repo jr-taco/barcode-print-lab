@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>码间 · 样张库</title>
+<style>
+*{box-sizing:border-box}body{background:#f4f5f0;color:#192e25;font:16px system-ui;margin:0}main{max-width:960px;margin:auto;padding:28px 18px}button,select,input{font:inherit}button{cursor:pointer;padding:.5rem}nav,fieldset{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.7rem 0}#items{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.4rem}#items label,.card{background:white;border:1px solid #ccd8cf;padding:.5rem;overflow-wrap:anywhere}.sheet{display:grid;grid-template-columns:repeat(2,1fr);gap:5mm}.card{min-height:42mm;text-align:center;break-inside:avoid}.card svg{width:50mm;height:27mm;display:block;margin:auto}.scale{width:100mm;border-bottom:1px solid black;margin-bottom:4mm}@page{size:A4;margin:12mm}@media print{body{background:white}main{padding:0}.controls{display:none}.card{border-color:#aaa}}
+</style>
+<main><div class="controls"><a href="./">返回打印实验台</a><h1>条码样张库</h1><p>256 个普通条码，覆盖 EAN‑13、EAN‑8、Code 128 和 QR。可勾选或随机抽样，每页最多 8 个。打印时选 A4、实际大小 100%，并核对标线。</p>
+<fieldset><legend>筛选与抽样</legend><label>码制 <select id="kind"><option value="">全部</option><option>EAN-13</option><option>EAN-8</option><option>Code 128</option><option>QR</option></select></label><label>搜索 <input id="query"></label><button id="random">随机选 8 个</button><button id="clear">清空</button><button id="print" disabled>打印选中样张</button></fieldset>
+<p id="count" aria-live="polite"></p><div id="items"></div><h2>打印预览</h2></div>
+<div class="scale">100 mm</div><div id="sheet" class="sheet"></div></main>
+<script src="catalog.js"></script>
+<script>
+const el=id=>document.getElementById(id), selected=new Set();
+const records=CATALOG.map(([format,value,w,h,path],i)=>({format,value,w,h,path,id:'L'+String(i+1).padStart(3,'0')}));
+function filtered(){const q=el('query').value.trim().toLowerCase();return records.filter(r=>(!el('kind').value||r.format===el('kind').value)&&[r.id,r.value].some(s=>s.toLowerCase().includes(q)));}
+function render(){
+ const chosen=records.filter(r=>selected.has(r.id));
+ el('count').textContent='已选 '+chosen.length+' / 8';
+ el('print').disabled=!chosen.length;
+ el('items').replaceChildren(...filtered().map(r=>{
+  const label=document.createElement('label'), check=document.createElement('input');
+  check.type='checkbox';check.checked=selected.has(r.id);check.disabled=!check.checked&&selected.size>=8;
+  check.onchange=()=>{if(check.checked)selected.add(r.id);else selected.delete(r.id);render();};
+  label.append(check,' '+r.id+' · '+r.value);return label;
+ }));
+ el('sheet').replaceChildren(...chosen.map(r=>{
+  const card=document.createElement('div');card.className='card';card.append(r.id+' · '+r.format);
+  const ns='http://www.w3.org/2000/svg', svg=document.createElementNS(ns,'svg'), shape=document.createElementNS(ns,'path');
+  svg.setAttribute('viewBox','0 0 '+r.w+' '+r.h);shape.setAttribute('d',r.path);svg.append(shape);card.append(svg,r.value);return card;
+ }));
+}
+el('kind').onchange=render;el('query').oninput=render;el('clear').onclick=()=>{selected.clear();render();};
+el('random').onclick=()=>{const pool=filtered();selected.clear();while(pool.length&&selected.size<8){selected.add(pool.splice(Math.floor(Math.random()*pool.length),1)[0].id);}render();};
+el('print').onclick=()=>window.print();render();
+</script></html>
