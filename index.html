@@ -21,7 +21,7 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 #banner{background:#fff4d5;color:#5b4514;padding:.6rem}
 </style>
 <main><header><h1>条码打印与解码</h1><p>选样、打印、读码。照片和视频在浏览器处理。</p></header>
-<section><h2>01 选样与打印</h2><p>从 256 个普通条码中选样，或直接下载练习页。按 A4 实际大小打印，核对 100 mm 标线。</p><nav><a class="button" href="catalog.html">打开条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a></nav></section>
+<section><h2>01 选样与打印</h2><p>从 256 个普通条码中选样，或直接下载练习页。按 A4 实际大小打印，核对 100 mm 标线。</p><nav><a class="button" href="catalog.html">打开条码库</a><a class="button secondary" href="sample.svg" download>下载练习页</a><a class="button secondary" href="watermark.html">E2E 隐藏水印核对</a></nav></section>
 <section><h2>02 解码核对</h2>
 <label for="sample">样张编号</label><br><select id="sample"></select>
 <p>拍摄单枚条码，保留左右白边。再选择或拖入照片或短视频。</p>
@@ -30,7 +30,7 @@ select{font:inherit;max-width:100%;padding:.4rem;margin-bottom:12px}
 <p id="banner" hidden role="status">演示数据 · 以下结果由示例生成，没有读取拍摄文件。</p>
 <div class="checks" aria-label="解码判定" aria-live="polite">
  <article class="check"><h3>公开条码</h3><strong id="public-state" class="verdict">等待读取</strong><p id="public-expected"></p><p id="public-actual">实际读数：—</p></article>
- <article class="check"><h3>隐藏水印</h3><strong id="hidden-state" class="verdict">未验证</strong><p id="hidden-detail">当前页面未连接 E2E 水印读取器。</p></article>
+ <article class="check"><h3>隐藏水印</h3><strong id="hidden-state" class="verdict">未验证</strong><p id="hidden-detail">普通样张没有隐藏载荷。请使用 E2E 样张核对页面。</p></article>
 </div>
 <nav><button id="save" disabled>下载读取记录</button><button id="demo" class="secondary">演示判定效果</button></nav>
 </section></main>
@@ -52,7 +52,7 @@ function show(r){
  by('hidden-state').textContent=label[hid];by('hidden-state').dataset.tone=tone[hid];
  by('public-expected').textContent='预期：'+current().value;
  by('public-actual').textContent='实际读数：'+(r?.public?.values?.join('、')||'—');
- by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':'当前页面未连接 E2E 水印读取器。';
+ by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
  save.disabled=!r||r.demo;
 }
 function publicResult(values,expected){return {expected,values,status:!values.length?'no_read':values.length===1&&values[0]===expected?'correct':'mismatch'};}

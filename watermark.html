@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>条码打印与解码 · E2E</title>
+<style>
+body{max-width:52rem;margin:2rem auto;padding:0 1rem;font:16px/1.6 system-ui;color:#182621}
+section{padding:1rem 0;border-top:1px solid #ccd6d1}
+button,input{font:inherit;margin:.2rem 0}
+canvas{max-width:100%;height:auto;border:1px solid #aaa;touch-action:manipulation}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+article{border:1px solid #ccd6d1;padding:1rem}article h2{margin:0;font-size:1rem}strong{font-size:1.25rem}
+</style>
+<main><a href="./">返回条码打印实验台</a><h1>E2E 公开码与隐藏水印核对</h1>
+<p>适用于下方的 EAN‑13 样张。照片和视频在浏览器里处理。</p>
+<section><p><a href="watermark-sample.png" download>下载 E2E 打印样张</a> · 以 38.3 × 28.4 mm 放置图像</p>
+<input id="file" aria-label="选择照片或短视频" type="file" accept="image/*,video/*">
+<button id="example">读取数字样张</button><br>
+<video id="video" controls playsinline hidden width="320"></video>
+<button id="capture" hidden>选取当前视频帧</button>
+<p id="help">如果上传纸样照片，依次点选样张图像的左上、右上、右下、左下角，包含原白边。</p>
+<canvas id="preview" hidden></canvas><br>
+<button id="reset" hidden>重选四角</button>
+<button id="read" disabled>核对两种条码</button></section>
+<div class="results" aria-live="polite"><article><h2>公开条码</h2><strong id="public">等待读取</strong><p id="public-detail"></p></article><article><h2>隐藏水印</h2><strong id="hidden">等待读取</strong><p id="hidden-detail"></p></article></div>
+<p id="status" role="status"></p></main>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+<script type="module" src="watermark-web.mjs"></script></html>
