@@ -50,8 +50,8 @@ if(index>=0)sample.value=String(index);
 ZXingWASM.prepareZXingModule({overrides:{locateFile:(path,prefix)=>path.endsWith('.wasm')?new URL('vendor/'+path,location.href).href:prefix+path}});
 
 const current=()=>rows[Number(sample.value)];
-const label={correct:'正确',mismatch:'不匹配',no_read:'未读出',unverified:'未验证',waiting:'等待读取'};
-const tone={correct:'ok',mismatch:'bad',no_read:'idle',unverified:'idle',waiting:'idle'};
+const label={control:'无水印对照',correct:'正确',mismatch:'不匹配',no_read:'未读出',unverified:'未验证',waiting:'等待读取'};
+const tone={control:'idle',correct:'ok',mismatch:'bad',no_read:'idle',unverified:'idle',waiting:'idle'};
 let record,busy=false,demoIndex=0;
 function show(r){
  banner.hidden=!r?.demo;
@@ -60,7 +60,13 @@ function show(r){
  by('hidden-state').textContent=label[hid];by('hidden-state').dataset.tone=tone[hid];
  by('public-expected').textContent='预期：'+current().value;
  by('public-actual').textContent='实际读数：'+(r?.public?.values?.join('、')||'—');
- by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':current().field?'这个样张可核对公开码，网页尚未接入它的隐藏水印。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
+ by('hidden-detail').textContent=r?.demo?'演示：与该样张的参考载荷做比对。':
+  current().uid?.startsWith('rough230g-')?(
+   hid==='control'?'该位置是无水印对照。':
+   r?.hidden?.payload?'读出载荷：'+r.hidden.payload+' · 使用 '+r.hidden.frames+' 帧':
+   hid==='no_read'?'未找到可读取水印的清晰完整条码帧。':
+   r?.hidden?.error?'水印处理失败：'+r.hidden.error:'选择视频后自动读取并核对隐藏水印。'
+  ):current().field?'该优选图请从粗面纸批次找到对应的一维样张。':'普通样张没有隐藏载荷。请使用 E2E 样张核对页面。';
  save.disabled=!r||r.demo;
 }
 function publicResult(values,expected){return {expected,values,status:!values.length?'no_read':values.length===1&&values[0]===expected?'correct':'mismatch'};}
@@ -80,6 +86,11 @@ async function read(f){
  const selected=current();
  let url,video,image;
  try{
+  let rough,hidden={status:'unverified'};
+  if(selected.uid?.startsWith('rough230g-')){
+    try{rough=await import('./rough-decoder/read.mjs?v=1').then(m=>m.configureRough(selected.uid));}
+    catch(e){hidden.error=e.message;}
+  }
   const found=new Map(), frame=document.createElement('canvas');
   const ctx=frame.getContext('2d',{willReadFrequently:true});
   const scan=async source=>{
@@ -87,8 +98,13 @@ async function read(f){
    const scale=Math.min(1,1920/Math.max(width,height));
    frame.width=Math.max(1,Math.round(width*scale));frame.height=Math.max(1,Math.round(height*scale));
    ctx.drawImage(source,0,0,frame.width,frame.height);
-   const hits=await ZXingWASM.readBarcodes(ctx.getImageData(0,0,frame.width,frame.height),{tryHarder:true,formats:['EAN13','EAN8','Code128','QRCode']});
+   const imageData=ctx.getImageData(0,0,frame.width,frame.height);
+   const hits=await ZXingWASM.readBarcodes(imageData,{tryHarder:true,formats:['EAN13','EAN8','Code128','QRCode']});
    for(const {format,text} of hits)found.set(format+'\0'+text,{format,value:text});
+   if(rough){
+     try{rough.collect(imageData,hits);}
+     catch(e){hidden.error=e.message;rough=undefined;}
+   }
   };
   if(f.type.startsWith('video/')||/\.(mp4|mov|m4v|webm)$/i.test(f.name)){
    url=URL.createObjectURL(f);video=document.createElement('video');video.muted=true;video.preload='auto';
@@ -97,9 +113,14 @@ async function read(f){
    if(!Number.isFinite(duration)||duration<=0)throw Error('无法确认视频时长，请转为 MP4 后重试。');
    for(let i=0;i<12;i++){const t=(i+.5)*duration/12;if(Math.abs(video.currentTime-t)>0.001){const seek=event(video,'seeked');video.currentTime=t;await seek;}await scan(video);}
   }else{image=await createImageBitmap(f);await scan(image);}
+  if(rough){
+    status.textContent='正在核对隐藏水印…';
+    try{hidden=await rough.result();}
+    catch(e){hidden.error=e.message;}
+  }
   const codes=[...found.values()];
   record={file:f.name,created_at:new Date().toISOString(),sample:selected.uid||selected.id,codes,
-   public:publicResult([...new Set(codes.map(x=>x.value))],selected.value),hidden:{status:'unverified'}};
+   public:publicResult([...new Set(codes.map(x=>x.value))],selected.value),hidden};
   status.textContent='读取完成';show(record);
  }catch(e){status.textContent=e.message||'读取失败';}
  finally{image?.close();if(video)video.removeAttribute('src');if(url)URL.revokeObjectURL(url);busy=false;sample.disabled=false;demo.disabled=false;}
