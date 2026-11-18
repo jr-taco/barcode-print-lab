@@ -1,3 +1,4 @@
+import {locateSample} from './video-align.mjs';
 import {decodeWatermark,readEAN13} from './watermark-osd.mjs';
 const el=id=>document.getElementById(id), canvas=el('preview'), video=el('video');
 const w=452,h=336;
@@ -6,7 +7,7 @@ function clear(){
  for(const id of ['public','hidden'])el(id).textContent='等待读取';
  for(const id of ['public-detail','hidden-detail','status'])el(id).textContent='';
 }
-function display(image,width,height,aligned=false){
+function display(image,width,height,aligned=false,quiet=false){
  const scale=Math.min(1,1500/Math.max(width,height));
  canvas.width=Math.round(width*scale);canvas.height=Math.round(height*scale);
  canvas.hidden=false;el('reset').hidden=false;
@@ -15,7 +16,7 @@ function display(image,width,height,aligned=false){
  source=ctx.getImageData(0,0,canvas.width,canvas.height);
  points=aligned?[[0,0],[canvas.width-1,0],[canvas.width-1,canvas.height-1],[0,canvas.height-1]]:[];
  el('read').disabled=points.length!==4;
- clear();
+ if(!quiet)clear();
 }
 function rectified(){
  const rows=[];
@@ -58,7 +59,7 @@ el('file').onchange=async()=>{
  if(url)URL.revokeObjectURL(url);
  url=URL.createObjectURL(file);
  if(file.type.startsWith('video/')||/\.(mp4|mov|m4v|webm)$/i.test(file.name)){
-   video.src=url;video.hidden=false;el('capture').hidden=false;
+   video.src=url;video.hidden=false;el('capture').hidden=false;await readVideo();
  }else{
    try{const image=await createImageBitmap(file);display(image,image.width,image.height);image.close();}
    catch{el('status').textContent='无法读取此照片。';}
@@ -81,21 +82,78 @@ async function load(){
  ]);
  return {session,reference};
 }
+function waitMedia(event, action){
+ return new Promise((resolve,reject)=>{
+   const finish=(error)=>{clearTimeout(timer);video.removeEventListener(event,ok);video.removeEventListener('error',bad);error?reject(error):resolve();};
+   const ok=()=>finish(),bad=()=>finish(Error('无法读取视频。请使用兼容的 MP4。'));
+   const timer=setTimeout(bad,8000);
+   video.addEventListener(event,ok);video.addEventListener('error',bad);
+   action?.();
+ });
+}
+function startRun(){
+ running=true;el('read').disabled=true;el('file').disabled=true;el('example').disabled=true;clear();
+ el('status').textContent='正在解码…';
+}
+function finishRun(){
+ running=false;el('read').disabled=points.length!==4;el('file').disabled=false;el('example').disabled=false;
+}
+const reader=()=>engine??=load().catch(e=>{engine=undefined;throw e;});
+async function score(session,pixels){
+ return (await session.run({luminance:new ort.Tensor('float32',pixels,[1,1,h,w])})).logits.data;
+}
+function report(values,scores,reference,frames){
+ const codes=[...values];
+ el('public').textContent=!codes.length?'未读出':codes.length===1&&codes[0]===reference.ean?'正确':'不匹配';
+ el('public-detail').textContent='预期：'+reference.ean+'；实际：'+(codes.join('、')||'—');
+ if(!frames){
+   el('hidden').textContent='未读出';
+   el('hidden-detail').textContent='未找到可用于水印解码的完整样张。';
+   return;
+ }
+ const payload=decodeWatermark(scores,reference.generator);
+ el('hidden').textContent=payload===reference.payload?'正确':'不匹配';
+ el('hidden-detail').textContent='读出载荷：'+payload+' · 使用 '+frames+' 帧';
+}
+async function readVideo(){
+ startRun();
+ try{
+  if(video.readyState<2)await waitMedia('loadeddata');
+  const duration=Math.min(video.duration,30);
+  if(!Number.isFinite(duration)||duration<=0)throw Error('无法确认视频时长。');
+  const {session,reference}=await reader();
+  const scores=new Float64Array(100), values=new Set();
+  let used=0;
+  for(let j=0;j<10&&used<5;j++){
+   el('status').textContent='正在检查视频帧 '+(j+1)+' / 10…';
+   const t=duration*(j+.5)/10;
+   if(Math.abs(video.currentTime-t)>.001)await waitMedia('seeked',()=>{video.currentTime=t;});
+   display(video,video.videoWidth,video.videoHeight,false,true);
+   points=locateSample(source,reference.pattern)||[];
+   if(points.length!==4)continue;
+   const {pixels}=rectified();
+   const codes=readEAN13(pixels,w,h);
+   codes.forEach(v=>values.add(v));
+   if(!codes.includes(reference.ean))continue;
+   const logits=await score(session,pixels);
+   for(let k=0;k<scores.length;k++)scores[k]+=logits[k];
+   used++;
+  }
+  report(values,scores,reference,used);
+  points=[];
+  el('status').textContent=used?'视频核对完成':'未能自动定位。可手动选取清晰视频帧并标记四角。';
+ }catch(e){el('hidden').textContent='未验证';el('status').textContent=e.message||'读取失败。';}
+ finally{finishRun();}
+}
 async function read(){
  if(running||points.length!==4)return;
- running=true;el('read').disabled=true;clear();el('status').textContent='正在解码…';
+ startRun();
  try{
-   const {session,reference}=await (engine??=load().catch(e=>{engine=undefined;throw e;}));
+   const {session,reference}=await reader();
    const {pixels}=rectified();
-   const values=readEAN13(pixels,w,h);
-   el('public').textContent=!values.length?'未读出':values.length===1&&values[0]===reference.ean?'正确':'不匹配';
-   el('public-detail').textContent='预期：'+reference.ean+'；实际：'+(values.join('、')||'—');
-   const output=await session.run({luminance:new ort.Tensor('float32',pixels,[1,1,h,w])});
-   const payload=decodeWatermark(output.logits.data,reference.generator);
-   el('hidden').textContent=payload===reference.payload?'正确':'不匹配';
-   el('hidden-detail').textContent='读出载荷：'+payload+'（与此样张的参考值比对）';
+   report(new Set(readEAN13(pixels,w,h)),await score(session,pixels),reference,1);
    el('status').textContent='核对完成';
  }catch(e){el('hidden').textContent='未验证';el('status').textContent=e.message||'读取失败。';}
- finally{running=false;el('read').disabled=false;}
+ finally{finishRun();}
 }
 el('read').onclick=read;

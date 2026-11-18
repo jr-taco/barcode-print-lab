@@ -10,13 +10,13 @@ canvas{max-width:100%;height:auto;border:1px solid #aaa;touch-action:manipulatio
 article{border:1px solid #ccd6d1;padding:1rem}article h2{margin:0;font-size:1rem}strong{font-size:1.25rem}
 </style>
 <main><a href="./">返回条码打印实验台</a><h1>E2E 公开码与隐藏水印核对</h1>
-<p>适用于下方的 EAN‑13 样张。照片和视频在浏览器里处理。</p>
+<p>适用于下方的 EAN‑13 样张。上传视频后会自动抽帧并核对。照片和视频在浏览器里处理。</p>
 <section><p><a href="watermark-sample.png" download>下载 E2E 打印样张</a> · 以 38.3 × 28.4 mm 放置图像</p>
 <input id="file" aria-label="选择照片或短视频" type="file" accept="image/*,video/*">
 <button id="example">读取数字样张</button><br>
 <video id="video" controls playsinline hidden width="320"></video>
 <button id="capture" hidden>选取当前视频帧</button>
-<p id="help">如果上传纸样照片，依次点选样张图像的左上、右上、右下、左下角，包含原白边。</p>
+<p id="help">照片或自动定位失败时，可依次点选样张图像的左上、右上、右下、左下角，包含原白边。</p>
 <canvas id="preview" hidden></canvas><br>
 <button id="reset" hidden>重选四角</button>
 <button id="read" disabled>核对两种条码</button></section>
